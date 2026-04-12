@@ -41,8 +41,7 @@ async def generatescript(interaction: discord.Interaction, prompt: str):
         )
         
         # Async invocation of the completely Free GPT-4 Inference wrappers
-        ai_client = g4f.AsyncClient()
-        response = await ai_client.chat.completions.create(
+        response = await g4f.ChatCompletion.create_async(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": system_instructions},
@@ -50,7 +49,8 @@ async def generatescript(interaction: discord.Interaction, prompt: str):
             ]
         )
         
-        script_content = response.choices[0].message.content.strip()
+        # G4F returns the raw text natively in this method
+        script_content = response.strip()
         
         # Fallback to wrap text if AI forgets markdown formatting
         if not script_content.startswith("```lua") and not script_content.startswith("```"):
