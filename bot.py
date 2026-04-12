@@ -2,9 +2,10 @@ import discord
 from discord import app_commands
 import os
 import io
-import g4f
+import asyncio
+from duckduckgo_search import DDGS
 
-# Only requires Discord Token! Zero external API keys needed.
+# Only requires Discord Token! Zero external AI keys needed.
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
 class LuaGeneratorBot(discord.Client):
@@ -25,10 +26,10 @@ async def on_ready():
     print('Bot is ready to receive commands!')
     print('------')
 
-@client.tree.command(name="generatescript", description="Generates a flawless Lua script using free AI based on your prompt")
+@client.tree.command(name="generatescript", description="Generates a flawless Lua script using free API-less AI")
 @app_commands.describe(prompt="What do you want the Lua script to do?")
 async def generatescript(interaction: discord.Interaction, prompt: str):
-    # Defer the interaction immediately because Free AI inference can take a few seconds
+    # Defer the interaction immediately because free AI inference takes time
     await interaction.response.defer(thinking=True)
     
     try:
@@ -40,17 +41,15 @@ async def generatescript(interaction: discord.Interaction, prompt: str):
             "Ensure the script is optimized, well-structured, and secure."
         )
         
-        # Async invocation of the completely Free GPT-4 Inference wrappers
-        response = await g4f.ChatCompletion.create_async(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": system_instructions},
-                {"role": "user", "content": prompt}
-            ]
-        )
+        full_prompt = f"{system_instructions}\n\nUser request: {prompt}"
         
-        # G4F returns the raw text natively in this method
-        script_content = response.strip()
+        # We run the synchronous DuckDuckGo AI scraper in a background thread 
+        # so it doesn't block the Discord Bot's heartbeat loop!
+        def fetch_ai_response():
+            # Uses DuckDuckGo's internal GPT-4o-Mini proxy natively without rate limits!
+            return DDGS().chat(full_prompt, model='gpt-4o-mini')
+            
+        script_content = await asyncio.to_thread(fetch_ai_response)
         
         # Fallback to wrap text if AI forgets markdown formatting
         if not script_content.startswith("```lua") and not script_content.startswith("```"):
@@ -69,7 +68,7 @@ async def generatescript(interaction: discord.Interaction, prompt: str):
             await interaction.followup.send(content=f"✨ **Here is your generated script!**\n{script_content}")
             
     except Exception as e:
-        await interaction.followup.send(content=f"❌ An error occurred while generating the script using the Free API:\n```\n{str(e)}\n```")
+        await interaction.followup.send(content=f"❌ An error occurred while routing through the Free Proxy:\n```\n{str(e)}\n```")
 
 if __name__ == "__main__":
     if not DISCORD_TOKEN:
